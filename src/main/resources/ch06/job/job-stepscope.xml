@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:batch="http://www.springframework.org/schema/batch"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/batch
+       http://www.springframework.org/schema/batch/spring-batch-2.2.xsd">
+    <import resource="classpath:ch04/job-context.xml"></import>
+
+
+    <batch:job id="billJob">
+        <batch:step id="billStep">
+            <batch:tasklet transaction-manager="transactionManager" task-executor="taskExecutor">
+                <batch:chunk reader="csvItemReader" writer="csvItemWriter" processor="creditBillProcessor" commit-interval="2" skip-limit="2">
+                    <batch:skippable-exception-classes>
+                        <batch:include class="java.lang.RuntimeException"></batch:include>
+                    </batch:skippable-exception-classes>
+                </batch:chunk>
+
+            </batch:tasklet>
+
+        </batch:step>
+    </batch:job>
+
+    <bean id="taskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+        <property name="corePoolSize" value="5"></property>
+        <property name="maxPoolSize" value="15"></property>
+    </bean>
+
+    <bean id="lineTokenizer" class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+        <property name="delimiter" value=","></property>
+        <property name="names">
+            <list>
+                <value>accountID</value>
+                <value>name</value>
+                <value>amount</value>
+                <value>date</value>
+                <value>address</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="fieldSetMapper" class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+        <property name="prototypeBeanName" value="creditBill"></property>
+    </bean>
+    <bean id="lineMapper" class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+        <property name="lineTokenizer" ref="lineTokenizer"></property>
+        <property name="fieldSetMapper" ref="fieldSetMapper"></property>
+    </bean>
+    <!--读取信用卡账单文件，cvs格式-->
+    <bean id="csvItemReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+        <property name="resource" value="#{jobParameters['inputResource']}"></property>
+        <property name="lineMapper" ref="lineMapper"></property>
+        <property name="encoding" value="utf-8"></property>
+        <property name="linesToSkip" value="1"></property>
+        <property name="comments">
+            <array>
+                <value>##</value>
+                <value>$$</value>
+            </array>
+
+        </property>
+        <property name="recordSeparatorPolicy" ref="simpleRecordSeparatorPolicy"></property>
+        <property name="skippedLinesCallback" ref="copyHeaderKineCallbackHandler"></property>
+    </bean>
+
+    <bean id="simpleRecordSeparatorPolicy" class="org.springframework.batch.item.file.separator.SimpleRecordSeparatorPolicy"></bean>
+
+
+
+    <bean id="fieldExtractor" class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+        <property name="names" value="accountID,name,amount,date,address"></property>
+    </bean>
+    <bean id="lineAggregator" class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+        <property name="delimiter" value=","></property>
+        <property name="fieldExtractor" ref="fieldExtractor"></property>
+    </bean>
+    <bean id="csvItemWriter" class="org.springframework.batch.item.file.FlatFileItemWriter">
+        <property name="resource" value="file:target/ch06/outputFile.csv"></property>
+        <property name="lineAggregator" ref="lineAggregator"></property>
+        <property name="headerCallback" ref="copyHeaderKineCallbackHandler"></property>
+    </bean>
+
+    <bean id="creditBill" class="cn.itcast.ch06.CreditBill" scope="prototype"></bean>
+    <bean id="creditBillProcessor" class="cn.itcast.ch06.CreditBillProcessor" scope="step"></bean>
+    <bean id="copyHeaderKineCallbackHandler" class="cn.itcast.ch06.CopyHeaderKineCallbackHandler"></bean>
+</beans>

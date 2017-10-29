@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:batch="http://www.springframework.org/schema/batch"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/batch
+       http://www.springframework.org/schema/batch/spring-batch-2.2.xsd">
+    <import resource="classpath:ch04/job-context.xml"></import>
+
+
+    <batch:job id="billJob">
+        <batch:step id="billStep">
+            <batch:tasklet transaction-manager="transactionManager">
+                <batch:chunk reader="jdbcCursorItemReader" writer="jdbcBatchItemWriter" commit-interval="1" >
+
+                </batch:chunk>
+
+            </batch:tasklet>
+
+        </batch:step>
+    </batch:job>
+
+
+    <bean id="jdbcCursorItemReader" class="org.springframework.batch.item.database.JdbcCursorItemReader" scope="step">
+        <property name="dataSource" ref="dataSource"></property>
+        <property name="sql" value="select ID,ACCOUNTID,NAME,AMOUNT,DATE,ADDRESS from t_credit where id	&lt; ? "></property>
+        <property name="rowMapper" ref="rowMapper"></property>
+        <property name="preparedStatementSetter" ref="preparedStatementSetter"></property>
+        <property name="verifyCursorPosition" value="false"></property>
+    </bean>
+
+
+
+    <bean id="rowMapper" class="org.springframework.jdbc.core.BeanPropertyRowMapper">
+        <property name="mappedClass" value="cn.itcast.ch07.DestinationCreditBill"></property>
+    </bean>
+    <bean id="preparedStatementSetter" class="org.springframework.batch.core.resource.ListPreparedStatementSetter" scope="step">
+        <property name="parameters">
+            <list>
+                <value>#{jobParameters['id']}</value>
+            </list>
+        </property>
+
+    </bean>
+
+    <bean id="jdbcBatchItemWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+        <property name="dataSource" ref="dataSource"></property>
+        <!--<property name="sql" value="insert into t_destcredit (ID,ACCOUNTID,NAME,AMOUNT,DATE,ADDRESS) values (:id,:accountID,:name,:amount,:date,:address)"></property>
+        <property name="itemSqlParameterSourceProvider" ref="itemSqlParameterSourceProvider"></property>-->
+        <property name="sql" value="insert into t_destcredit (ID,ACCOUNTID,NAME,AMOUNT,DATE,ADDRESS) values (?,?,?,?,?,?)"></property>
+        <property name="itemPreparedStatementSetter" ref="itemPreparedStatementSetter"></property>
+    </bean>
+    <bean id="itemPreparedStatementSetter" class="cn.itcast.ch07.DestinationItemPreparedStatementSetter"></bean>
+    <bean id="itemSqlParameterSourceProvider" class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider"></bean>
+
+
+</beans>
