@@ -8,6 +8,8 @@ import java.io.Writer;
 
 /**
  * Created by sren on 2017/6/11.
+ 
+dsdsad 
  */
 public class CopyHeaderKineCallbackHandler implements LineCallbackHandler, FlatFileHeaderCallback {
     private String header = "";
